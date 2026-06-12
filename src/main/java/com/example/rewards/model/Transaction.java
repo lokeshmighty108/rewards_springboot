@@ -1,5 +1,8 @@
 package com.example.rewards.model;
 
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
@@ -8,10 +11,20 @@ import java.time.LocalDate;
  */
 public class Transaction {
 
+    @NotBlank(message = "Transaction id must not be blank.")
     private final String transactionId;
+
+    @NotBlank(message = "Customer id must not be blank.")
     private final String customerId;
+
+    @NotBlank(message = "Customer name must not be blank.")
     private final String customerName;
+
+    @NotNull(message = "Transaction amount must not be null.")
+    @DecimalMin(value = "0.00", message = "Transaction amount must not be negative.")
     private final BigDecimal amount;
+
+    @NotNull(message = "Transaction date must not be null.")
     private final LocalDate transactionDate;
 
     /**

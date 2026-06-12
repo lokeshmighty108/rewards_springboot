@@ -8,6 +8,7 @@ import com.example.rewards.dto.CustomerRewardsResponse;
 import com.example.rewards.dto.RewardsSummaryResponse;
 import com.example.rewards.exception.CustomerNotFoundException;
 import com.example.rewards.exception.InvalidDateRangeException;
+import com.example.rewards.exception.InvalidRequestException;
 import com.example.rewards.exception.InvalidTransactionException;
 import com.example.rewards.model.Transaction;
 import com.example.rewards.repository.TransactionRepository;
@@ -63,10 +64,10 @@ class RewardServiceTest {
      */
     @Test
     void shouldApplyDateRangeFilter() {
-        when(transactionRepository.findAll()).thenReturn(List.of(
-                new Transaction("1", "C001", "Alice", BigDecimal.valueOf(120), LocalDate.of(2026, 1, 10)),
-                new Transaction("2", "C001", "Alice", BigDecimal.valueOf(120), LocalDate.of(2026, 2, 10)),
-                new Transaction("3", "C001", "Alice", BigDecimal.valueOf(120), LocalDate.of(2026, 3, 10))
+        when(transactionRepository.existsByCustomerId("C001")).thenReturn(true);
+        when(transactionRepository.findByCustomerIdAndDateRange(
+                "C001", LocalDate.of(2026, 2, 1), LocalDate.of(2026, 2, 28))).thenReturn(List.of(
+                new Transaction("2", "C001", "Alice", BigDecimal.valueOf(120), LocalDate.of(2026, 2, 10))
         ));
 
         RewardsSummaryResponse response = rewardService.getRewardsSummary(
@@ -82,9 +83,7 @@ class RewardServiceTest {
      */
     @Test
     void shouldThrowWhenCustomerDoesNotExist() {
-        when(transactionRepository.findAll()).thenReturn(List.of(
-                new Transaction("1", "C001", "Alice", BigDecimal.valueOf(120), LocalDate.of(2026, 1, 10))
-        ));
+        when(transactionRepository.existsByCustomerId("C999")).thenReturn(false);
 
         assertThrows(CustomerNotFoundException.class,
                 () -> rewardService.getRewardsSummary("C999", null, null));
@@ -110,5 +109,30 @@ class RewardServiceTest {
 
         assertThrows(InvalidTransactionException.class,
                 () -> rewardService.getRewardsSummary(null, null, null));
+    }
+
+    /**
+     * Verifies blank customer ids are rejected instead of silently treated as missing data.
+     */
+    @Test
+    void shouldThrowWhenCustomerIdIsBlank() {
+        assertThrows(InvalidRequestException.class,
+                () -> rewardService.getRewardsSummary("  ", null, null));
+    }
+
+    /**
+     * Verifies date-only filters use the repository date range query.
+     */
+    @Test
+    void shouldUseDateRangeRepositoryMethodWhenCustomerIdIsNotProvided() {
+        when(transactionRepository.findByDateRange(LocalDate.of(2026, 1, 1), LocalDate.of(2026, 1, 31))).thenReturn(List.of(
+                new Transaction("1", "C001", "Alice", BigDecimal.valueOf(120), LocalDate.of(2026, 1, 10))
+        ));
+
+        RewardsSummaryResponse response = rewardService.getRewardsSummary(
+                null, LocalDate.of(2026, 1, 1), LocalDate.of(2026, 1, 31));
+
+        assertEquals(1, response.getCustomers().size());
+        assertEquals(90, response.getCustomers().get(0).getTotalRewards());
     }
 }

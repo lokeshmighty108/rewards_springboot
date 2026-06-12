@@ -44,6 +44,20 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Handles invalid request parameter errors.
+     *
+     * @param exception source exception
+     * @param request web request
+     * @return error response
+     */
+    @ExceptionHandler(InvalidRequestException.class)
+    public ResponseEntity<ApiErrorResponse> handleInvalidRequest(
+            InvalidRequestException exception,
+            ServletWebRequest request) {
+        return buildErrorResponse(HttpStatus.BAD_REQUEST, exception.getMessage(), request.getRequest().getRequestURI());
+    }
+
+    /**
      * Handles invalid transaction data errors.
      *
      * @param exception source exception

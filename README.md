@@ -7,7 +7,7 @@ This project implements the retailer rewards calculation assignment using Spring
 For each transaction:
 
 - 2 points for every dollar spent over `$100`
-- 1 point for every dollar spent between `$51` and `$100`
+- 1 point for every dollar spent over `$50` and up to `$100`
 
 Example:
 
@@ -17,8 +17,8 @@ The API calculates reward points per customer by month and total for a selected 
 
 ## Tech Stack
 
-- Java 11
-- Spring Boot 2.7
+- Java 17
+- Spring Boot 3.5
 - Maven
 - JUnit 5 / Spring Test / MockMvc
 
@@ -64,6 +64,17 @@ The app seeds in-memory transaction data for multiple customers and multiple mon
 - Second slab rewards (>100)
 - Decimal amount behavior
 
+## Decimal Amount Handling
+
+Reward points are calculated with `BigDecimal` using the full transaction amount. The final calculated points are rounded down to a whole number because reward points are returned as integers.
+
+Examples:
+
+- `$50.99` -> `0` points
+- `$99.99` -> `49` points
+- `$100.50` -> `51` points
+- `$120.75` -> `91` points
+
 ## How Months Are Handled
 
 Months are **not hardcoded**. The code groups transactions dynamically using `YearMonth` from each transaction date.
@@ -74,8 +85,22 @@ Global exception handling is implemented for:
 
 - Invalid date range (`startDate > endDate`) -> `400 Bad Request`
 - Unknown customer id -> `404 Not Found`
+- Blank customer id -> `400 Bad Request`
 - Invalid transaction amount (null/negative) -> `400 Bad Request`
 - Invalid parameter format -> `400 Bad Request`
+
+## Validation
+
+The transaction model uses Jakarta Bean Validation annotations for required fields and non-negative transaction amounts. The in-memory repository validates seeded transaction records during initialization so invalid sample data fails fast.
+
+## Repository Queries
+
+The repository exposes scoped query methods instead of only `findAll()`:
+
+- `findByCustomerId`
+- `findByDateRange`
+- `findByCustomerIdAndDateRange`
+- `existsByCustomerId`
 
 ## Tests
 
@@ -88,11 +113,14 @@ Coverage includes:
 
 - Reward slab calculations
 - Decimal and boundary handling
+- Repository query methods
+- Transaction model validation
 - Multiple customer/month aggregation
 - Date filtering
 - Unknown customer scenario
 - Invalid date range
 - Negative transaction amount
+- Blank customer id
 
 ### Integration tests
 

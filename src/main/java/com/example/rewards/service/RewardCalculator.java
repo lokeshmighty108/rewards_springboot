@@ -2,6 +2,7 @@ package com.example.rewards.service;
 
 import com.example.rewards.exception.InvalidTransactionException;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import org.springframework.stereotype.Component;
 
 /**
@@ -10,12 +11,13 @@ import org.springframework.stereotype.Component;
 @Component
 public class RewardCalculator {
 
-    private static final int LOWER_THRESHOLD = 50;
-    private static final int UPPER_THRESHOLD = 100;
+    private static final BigDecimal LOWER_THRESHOLD = BigDecimal.valueOf(50);
+    private static final BigDecimal UPPER_THRESHOLD = BigDecimal.valueOf(100);
+    private static final BigDecimal DOUBLE_POINTS_MULTIPLIER = BigDecimal.valueOf(2);
 
     /**
      * Calculates reward points from a transaction amount.
-     * Logic: 2 points for each dollar over 100 and 1 point for each dollar between 51 and 100.
+     * Logic: 2 points for each dollar over 100 and 1 point for each dollar over 50 up to 100.
      *
      * @param amount transaction amount
      * @return reward points
@@ -28,13 +30,18 @@ public class RewardCalculator {
             throw new InvalidTransactionException("Transaction amount must not be negative.");
         }
 
-        int wholeDollars = amount.intValue();
-        if (wholeDollars <= LOWER_THRESHOLD) {
+        if (amount.compareTo(LOWER_THRESHOLD) <= 0) {
             return 0;
         }
-        if (wholeDollars <= UPPER_THRESHOLD) {
-            return wholeDollars - LOWER_THRESHOLD;
+
+        BigDecimal points;
+        if (amount.compareTo(UPPER_THRESHOLD) <= 0) {
+            points = amount.subtract(LOWER_THRESHOLD);
+        } else {
+            points = UPPER_THRESHOLD.subtract(LOWER_THRESHOLD)
+                    .add(amount.subtract(UPPER_THRESHOLD).multiply(DOUBLE_POINTS_MULTIPLIER));
         }
-        return (UPPER_THRESHOLD - LOWER_THRESHOLD) + (long) (wholeDollars - UPPER_THRESHOLD) * 2;
+
+        return points.setScale(0, RoundingMode.DOWN).longValue();
     }
 }

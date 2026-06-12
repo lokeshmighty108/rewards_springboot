@@ -41,11 +41,14 @@ class RewardCalculatorTest {
     }
 
     /**
-     * Verifies decimal values use whole dollars for points.
+     * Verifies decimal values are calculated before final points are rounded down.
      */
     @Test
-    void shouldUseWholeDollarPartForDecimalAmounts() {
+    void shouldCalculateDecimalAmountsBeforeRoundingPointsDown() {
+        assertEquals(0, rewardCalculator.calculatePoints(BigDecimal.valueOf(50.99)));
         assertEquals(49, rewardCalculator.calculatePoints(BigDecimal.valueOf(99.99)));
+        assertEquals(51, rewardCalculator.calculatePoints(BigDecimal.valueOf(100.50)));
+        assertEquals(91, rewardCalculator.calculatePoints(BigDecimal.valueOf(120.75)));
     }
 
     /**

@@ -4,6 +4,7 @@ import com.example.rewards.dto.CustomerRewardsResponse;
 import com.example.rewards.dto.RewardsSummaryResponse;
 import com.example.rewards.exception.CustomerNotFoundException;
 import com.example.rewards.exception.InvalidDateRangeException;
+import com.example.rewards.exception.InvalidRequestException;
 import com.example.rewards.model.Transaction;
 import com.example.rewards.repository.TransactionRepository;
 import java.time.LocalDate;
@@ -44,19 +45,10 @@ public class RewardService {
      * @return reward summary response
      */
     public RewardsSummaryResponse getRewardsSummary(String customerId, LocalDate startDate, LocalDate endDate) {
+        String normalizedCustomerId = normalizeCustomerId(customerId);
         validateDateRange(startDate, endDate);
 
-        List<Transaction> allTransactions = transactionRepository.findAll();
-
-        if (customerId != null && allTransactions.stream().noneMatch(tx -> tx.getCustomerId().equals(customerId))) {
-            throw new CustomerNotFoundException("Customer id " + customerId + " was not found.");
-        }
-
-        List<Transaction> filteredTransactions = allTransactions.stream()
-                .filter(tx -> customerId == null || tx.getCustomerId().equals(customerId))
-                .filter(tx -> startDate == null || !tx.getTransactionDate().isBefore(startDate))
-                .filter(tx -> endDate == null || !tx.getTransactionDate().isAfter(endDate))
-                .collect(Collectors.toList());
+        List<Transaction> filteredTransactions = findTransactions(normalizedCustomerId, startDate, endDate);
 
         Map<String, List<Transaction>> transactionsByCustomer = filteredTransactions.stream()
                 .collect(Collectors.groupingBy(Transaction::getCustomerId));
@@ -67,6 +59,23 @@ public class RewardService {
                 .collect(Collectors.toList());
 
         return new RewardsSummaryResponse(customerResponses);
+    }
+
+    private List<Transaction> findTransactions(String customerId, LocalDate startDate, LocalDate endDate) {
+        boolean hasDateRange = startDate != null || endDate != null;
+
+        if (customerId != null) {
+            if (!transactionRepository.existsByCustomerId(customerId)) {
+                throw new CustomerNotFoundException("Customer id " + customerId + " was not found.");
+            }
+            return hasDateRange
+                    ? transactionRepository.findByCustomerIdAndDateRange(customerId, startDate, endDate)
+                    : transactionRepository.findByCustomerId(customerId);
+        }
+
+        return hasDateRange
+                ? transactionRepository.findByDateRange(startDate, endDate)
+                : transactionRepository.findAll();
     }
 
     private CustomerRewardsResponse buildCustomerResponse(List<Transaction> customerTransactions) {
@@ -95,5 +104,16 @@ public class RewardService {
         if (startDate != null && endDate != null && startDate.isAfter(endDate)) {
             throw new InvalidDateRangeException("startDate must be before or equal to endDate.");
         }
+    }
+
+    private String normalizeCustomerId(String customerId) {
+        if (customerId == null) {
+            return null;
+        }
+        String trimmedCustomerId = customerId.trim();
+        if (trimmedCustomerId.isEmpty()) {
+            throw new InvalidRequestException("customerId must not be blank.");
+        }
+        return trimmedCustomerId;
     }
 }

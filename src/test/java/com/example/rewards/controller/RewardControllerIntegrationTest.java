@@ -88,4 +88,15 @@ class RewardControllerIntegrationTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value(400));
     }
+
+    /**
+     * Verifies blank customer id returns bad request.
+     */
+    @Test
+    void shouldReturnBadRequestForBlankCustomerId() throws Exception {
+        mockMvc.perform(get("/api/rewards").param("customerId", "   "))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.message").value("customerId must not be blank."));
+    }
 }
